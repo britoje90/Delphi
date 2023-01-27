@@ -1,0 +1,310 @@
+unit uPagamentos_x_Despesas;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, Buttons, Mask, Grids, DBGrids, DB, ADODB, AppEvnts;
+
+type
+  TfrmPagamentos_x_Despesa = class(TForm)
+    DBGrid1: TDBGrid;
+    maskedtini: TMaskEdit;
+    maskedtfim: TMaskEdit;
+    BitBtn1: TBitBtn;
+    WareLine: TADOConnection;
+    DsPagtos: TDataSource;
+    QrPagtos: TADOQuery;
+    Label1: TLabel;
+    Label2: TLabel;
+    SpeedButton1: TSpeedButton;
+    procedure BitBtn1Click(Sender: TObject);
+    procedure SpeedButton1Click(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmPagamentos_x_Despesa: TfrmPagamentos_x_Despesa;
+
+implementation
+
+uses uExportado;
+
+{$R *.dfm}
+
+procedure TfrmPagamentos_x_Despesa.BitBtn1Click(Sender: TObject);
+
+begin
+  QrPagtos.Close;
+
+  QrPagtos.Parameters.ParamByName('DTINI').Value := StrToDate(maskedtini.Text);
+  QrPagtos.Parameters.ParamByName('DTFIM').Value := strtodate(maskedtfim.Text);
+
+  QrPagtos.Open;
+end;
+
+procedure TfrmPagamentos_x_Despesa.SpeedButton1Click(Sender: TObject);
+begin
+  Application.CreateForm(TfExportado, fExportado);
+  fExportado.DataSet1 := QrPagtos ;
+
+  fExportado.Titulo := 'Pagamentos x Despesas' ;
+  fExportado.Showmodal ;
+  fExportado.Free ;
+end;
+
+end.
+
+
+
+
+
+
+Query feita no ADOQuery e definido parametros para condição:
+
+select 
+distinct
+
+x.TIPO_VALOR,
+x.numpagto,
+x.numdoc,
+x.observa,
+x.tipodoc,
+x.descrdoc,
+--x.coddesp,
+case when x.coddesp in ('000228','000229','000230','000231') then '000255' else x.coddesp end coddesp,
+case when x.coddesp in ('000228','000229','000230','000231') then 'CONTAS MEDICAS' else x.descridesp end descridesp,
+x.codprest,
+x.nomeprest,
+x.dt_pg_parcel,
+x.parcela,
+x.valor,
+x.codbancx,
+x.nome_banco 
+
+from
+
+(
+
+SELECT 
+
+
+
+'VALOR_PARCELA' AS TIPO_VALOR,
+pagtos.numpagto,
+pagtos.tipodoc,
+pagtos.numdoc,
+pagtos.observa,
+caddoc.descrdoc,
+pgdesp.coddesp,
+caddesp.descridesp,
+pagtos.codprest,
+cadprest.nomeprest,
+pgparcel.datapagto as dt_pg_parcel,
+pgparcel.parcela,
+
+pgparcel.valorvenc as valor,
+cadbancx.codbancx,
+cadbancx.descricao as nome_banco
+
+
+
+
+FROM PAGTOS 
+
+inner join pgdesp   on (pagtos.numpagto = pgdesp.numpagto)
+
+inner join caddesp  on (pgdesp.coddesp = caddesp.coddesp)
+
+inner join cadprest on (pagtos.codprest = cadprest.codprest)
+
+inner join pgparcel on (pagtos.numpagto = pgparcel.numpagto)
+
+inner join pgmovban on (pgparcel.numpagto = pgmovban.numpagto and pgparcel.parcela = pgmovban.parcela)
+
+inner join movbancx on (pgmovban.nummovban = movbancx.nummovban)
+
+left join cadbancx  on (movbancx.codbancx = cadbancx.codbancx)
+
+inner join caddoc    on (pagtos.tipodoc    = caddoc.tipodoc)
+
+
+
+
+union all
+
+SELECT 
+'VALOR_JUROS' AS TIPO_VALOR,
+pagtos.numpagto,
+pagtos.tipodoc,
+pagtos.numdoc,
+pagtos.observa,
+caddoc.descrdoc,
+pgdesp.coddesp,
+caddesp.descridesp,
+pagtos.codprest,
+cadprest.nomeprest,
+pgparcel.datapagto as dt_pg_parcel,
+pgparcel.parcela,
+
+pgparcel.valorjuros as valor,
+cadbancx.codbancx,
+cadbancx.descricao as nome_banco
+
+
+
+FROM PAGTOS 
+
+inner join pgdesp   on (pagtos.numpagto = pgdesp.numpagto)
+
+inner join caddesp  on (pgdesp.coddesp = caddesp.coddesp)
+
+inner join cadprest on (pagtos.codprest = cadprest.codprest)
+
+inner join pgparcel on (pagtos.numpagto = pgparcel.numpagto)
+
+inner join pgmovban on (pgparcel.numpagto = pgmovban.numpagto and pgparcel.parcela = pgmovban.parcela)
+
+inner join movbancx on (pgmovban.nummovban = movbancx.nummovban)
+
+left join cadbancx  on (movbancx.codbancx = cadbancx.codbancx)
+
+inner join caddoc    on (pagtos.tipodoc    = caddoc.tipodoc)
+
+
+union all
+
+SELECT 
+
+
+'VALOR_MULTA' AS TIPO_VALOR,
+pagtos.numpagto,
+pagtos.tipodoc,
+pagtos.numdoc,
+pagtos.observa,
+caddoc.descrdoc,
+pgdesp.coddesp,
+caddesp.descridesp,
+pagtos.codprest,
+cadprest.nomeprest,
+pgparcel.datapagto as dt_pg_parcel,
+pgparcel.parcela,
+
+pgparcel.valormulta as valor,
+cadbancx.codbancx,
+cadbancx.descricao as nome_banco
+
+
+
+FROM PAGTOS 
+
+inner join pgdesp   on (pagtos.numpagto = pgdesp.numpagto)
+
+inner join caddesp  on (pgdesp.coddesp = caddesp.coddesp)
+
+inner join cadprest on (pagtos.codprest = cadprest.codprest)
+
+inner join pgparcel on (pagtos.numpagto = pgparcel.numpagto)
+
+inner join pgmovban on (pgparcel.numpagto = pgmovban.numpagto and pgparcel.parcela = pgmovban.parcela)
+
+inner join movbancx on (pgmovban.nummovban = movbancx.nummovban)
+
+left join cadbancx  on (movbancx.codbancx = cadbancx.codbancx)
+
+inner join caddoc    on (pagtos.tipodoc    = caddoc.tipodoc)
+
+
+union all
+
+SELECT 
+
+
+'VALOR_DESCONTO' AS TIPO_VALOR,
+pagtos.numpagto,
+pagtos.tipodoc,
+pagtos.numdoc,
+pagtos.observa,
+caddoc.descrdoc,
+pgdesp.coddesp,
+caddesp.descridesp,
+pagtos.codprest,
+cadprest.nomeprest,
+pgparcel.datapagto as dt_pg_parcel,
+pgparcel.parcela,
+
+pgparcel.valordesc as valor,
+cadbancx.codbancx,
+cadbancx.descricao as nome_banco
+
+
+
+FROM PAGTOS 
+
+inner join pgdesp   on (pagtos.numpagto = pgdesp.numpagto)
+
+inner join caddesp  on (pgdesp.coddesp = caddesp.coddesp)
+
+inner join cadprest on (pagtos.codprest = cadprest.codprest)
+
+inner join pgparcel on (pagtos.numpagto = pgparcel.numpagto)
+
+inner join pgmovban on (pgparcel.numpagto = pgmovban.numpagto and pgparcel.parcela = pgmovban.parcela)
+
+inner join movbancx on (pgmovban.nummovban = movbancx.nummovban)
+
+left join cadbancx  on (movbancx.codbancx = cadbancx.codbancx)
+
+inner join caddoc    on (pagtos.tipodoc    = caddoc.tipodoc)
+
+union all
+
+SELECT 
+
+
+'VALOR_IMPOSTOS' AS TIPO_VALOR,
+pagtos.numpagto,
+pagtos.tipodoc,
+pagtos.numdoc,
+pagtos.observa,
+caddoc.descrdoc,
+pgdesp.coddesp,
+caddesp.descridesp,
+pagtos.codprest,
+cadprest.nomeprest,
+pgparcel.datapagto as dt_pg_parcel,
+pgparcel.parcela,
+
+pgparcel.vlimpostos as valor,
+cadbancx.codbancx,
+cadbancx.descricao as nome_banco
+
+
+FROM PAGTOS 
+
+inner join pgdesp   on (pagtos.numpagto = pgdesp.numpagto)
+
+inner join caddesp  on (pgdesp.coddesp = caddesp.coddesp)
+
+inner join cadprest on (pagtos.codprest = cadprest.codprest)
+
+inner join pgparcel on (pagtos.numpagto = pgparcel.numpagto)
+
+inner join pgmovban on (pgparcel.numpagto = pgmovban.numpagto and pgparcel.parcela = pgmovban.parcela)
+
+inner join movbancx on (pgmovban.nummovban = movbancx.nummovban)
+
+left join cadbancx  on (movbancx.codbancx = cadbancx.codbancx)
+
+inner join caddoc    on (pagtos.tipodoc    = caddoc.tipodoc)
+
+
+) x
+
+where x.dt_pg_parcel between :dtini and :dtfim
+  and x.valor > 0  
+
+ order by x.numpagto, x.parcela
