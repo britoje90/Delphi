@@ -1,0 +1,129 @@
+unit uEProtEmail;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, IdIOHandler, IdIOHandlerSocket, IdSSLOpenSSL,
+  IdMessage, IdBaseComponent, IdComponent, IdTCPConnection, IdTCPClient,
+  IdMessageClient, IdSMTP, Buttons;
+
+type
+  TfrmEmail = class(TForm)
+    IdSMTP1: TIdSMTP;
+    IdMessage1: TIdMessage;
+    SSL: TIdSSLIOHandlerSocket;
+    btnEnviaEmail: TBitBtn;
+    edtEmail: TEdit;
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure btnEnviaEmailClick(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
+
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmEmail: TfrmEmail;
+
+
+implementation
+
+uses Data_Modulo_p, mainMenu;
+
+{$R *.dfm}
+
+
+procedure TfrmEmail.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+// Action := caFree;
+end;
+
+procedure TfrmEmail.btnEnviaEmailClick(Sender: TObject);
+var
+ requerssl,saudacao: string;
+ hora: TTime;
+Begin
+    hora := Time;
+    if hora <= strtotime('11:59:59') then
+      saudacao := 'Bom dia!'
+    else if (hora >= StrToTime('12:00:00')) and (hora <= StrToTime('17:59:59')) then
+      saudacao := 'Boa tarde!'
+    else
+      saudacao := 'Boa noite!';
+
+    IdMessage1.From.Name := 'SAC - Medical Health'; // Nome
+    IdMessage1.From.Address := 'email remetente'; // E-Mail
+    IdMessage1.Recipients.Add;
+
+    IdMessage1.Recipients.Items[0].Address := edtemail.Text;//email destino'; // Para
+
+    IdMessage1.Recipients.Add;
+    IdMessage1.Recipients.Items[1].Address := ',email cópia';
+
+    IdMessage1.Subject := 'Protocolo de Atendimento Medical Health'; // Assunto
+
+    IdMessage1.Body.Add(saudacao);
+    IdMessage1.Body.Add('');
+    IdMessage1.Body.Add('Foi aberto uma ocorrência em seu nome na Medical Health, segue abaixo o número do seu protocolo.');
+    IdMessage1.Body.Add('');
+    IdMessage1.Body.Add('Nº do Protocolo: '+protocolo+'.');
+    IdMessage1.Body.Add('');
+    IdMessage1.Body.Add('Favor, não responder esse email!');
+    IdMessage1.Body.Add('');
+    IdMessage1.Body.Add('A Medical Health agradece!');
+
+
+
+    //SSL
+    SSL.SSLOptions.Method := sslvTLSv1;
+    SSL.PassThrough := True;
+    SSL.SSLOptions.Mode := sslmClient;
+    ///////fim SSL////////////
+
+    //configuração smtp
+    
+    //novo smtp locaweb
+    IdSMTP1.Disconnect;
+    IdSMTP1.Host     := 'smtp da empresa contratada';
+    IdSMTP1.HeloName := 'email remetente';
+    IdSMTP1.Username := 'email para validação - email valido';
+    IdSMTP1.Password := 'senha do email';
+    IdSMTP1.Port := 587;  //587
+    IdSMTP1.IOHandler := SSL;  // Nome do componente SSL
+    IdSMTP1.AuthenticationType := atLogin;
+
+     try
+      IdSMTP1.Connect(1000);
+    //  IdSMTP1.SendCmd('STARTTLS', 220);
+    //  SSL.PassThrough := False;
+      IdSMTP1.Authenticate;
+     Except
+      ShowMessage('Erro ao conectar. Contate o administrador do sistema.');
+      IdSMTP1.Disconnect;
+     end;
+
+    if IdSMTP1.Connected then
+    begin
+     try
+      IdSMTP1.Send(IdMessage1);
+      ShowMessage('Protocolo enviado por E-mail!');
+      IdSMTP1.Disconnect;
+
+     Except
+      ShowMessage('Erro ao enviar e-mail. Contate o administrador do   sistema.');
+      IdSMTP1.Disconnect;
+     end;
+
+ end;
+
+end;
+
+procedure TfrmEmail.FormActivate(Sender: TObject);
+begin
+  edtEmail.Text := email;
+end;
+
+end.
