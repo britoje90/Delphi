@@ -1,0 +1,197 @@
+unit uExportado;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, DBXpress, FMTBcd, ExtCtrls, DBCtrls, Grids, DBGrids, DB,
+  DBClient, Provider, SqlExpr, StdCtrls, ComObj, ActiveX, Buttons,DBTables,ADODB ;
+
+
+type
+  TfExportAdo = class(TForm)
+    GroupBox1: TGroupBox;
+    lbOrigem: TListBox;
+    lbDestino: TListBox;
+    btExcTudo: TBitBtn;
+    btExcluir: TBitBtn;
+    btIncluir: TBitBtn;
+    btIncTudo: TBitBtn;
+    btGerar: TBitBtn;
+    btCancelar: TBitBtn;
+    procedure MoveSelected(List: TCustomListBox; Items: TStrings);
+    procedure SetItem(List: TListBox; Index: Integer);
+    function GetFirstSelection(List: TCustomListBox): Integer;
+    procedure FormActivate(Sender: TObject);
+    procedure btIncluirClick(Sender: TObject);
+    procedure btIncTudoClick(Sender: TObject);
+    procedure btExcTudoClick(Sender: TObject);
+    procedure btExcluirClick(Sender: TObject);
+    procedure btGerarClick(Sender: TObject);
+    procedure btCancelarClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    Titulo: String;
+    DataSet1 : TAdoQuery;
+    procedure GerarExcel(Consulta: TDataSet; pTituloPlanilha:String; Campos: TStrings);
+    procedure IncluirItens;
+  end;
+
+var
+  fExportAdo: TfExportAdo;
+
+implementation
+
+
+{$R *.dfm}
+
+{ TfExport }
+
+
+procedure TfExportAdo.GerarExcel(Consulta: TDataSet; pTituloPlanilha: String;
+  Campos: TStrings);
+var
+   coluna, linha, j: integer;
+   excel: variant;
+   valor:String;
+begin
+  try
+    excel:=CreateOleObject('Excel.Application');
+    excel.Workbooks.add(1);
+  except
+    Application.MessageBox ('Versão do Ms-Excel Incompatível','Erro',MB_OK+MB_ICONEXCLAMATION);
+  end;
+
+  DataSet1.First;
+
+  try
+
+    for coluna:=0 to Campos.Count -1 do // Inserindo os nomes de colunas na 2ª linha
+    begin
+      j := Integer(Campos.Objects[coluna]);
+      valor:= DataSet1.Fields[j].DisplayLabel;
+      excel.cells[2,coluna+1]:=valor;
+    end;
+
+
+    for linha:=0 to DataSet1.RecordCount-1 do
+    begin
+      for coluna:=0 to Campos.Count -1 do
+      begin
+        j := integer(Campos.Objects[coluna]);
+
+           try
+           excel.cells[linha+3,coluna+1]:= DataSet1.Fields[j].value;
+           except
+              null;
+           end ;
+
+      end;
+      DataSet1.Next;
+    end;
+
+
+    //Inserindo coluna de título para a planilha na 1ª linha
+    excel.cells[1,1] := pTituloPlanilha;
+    excel.cells[2,coluna].Font.Color := clBlue;
+
+    excel.columns.AutoFit;
+    Showmessage('Geração concluída com Sucesso!');
+    excel.visible:=true;
+  except
+    Application.MessageBox ('Aconteceu um erro desconhecido durante' +
+    ' a conversão da tabela para o Ms-Excel','Erro',MB_OK+MB_ICONEXCLAMATION);
+  end;
+end;
+
+function TfExportAdo.GetFirstSelection(List: TCustomListBox): Integer;
+begin
+  for Result := 0 to List.Items.Count - 1 do
+    if List.Selected[Result] then Exit;
+  Result := LB_ERR;
+end;
+
+procedure TfExportAdo.IncluirItens;
+var i:integer;
+begin
+  for i := 0 to DataSet1.FieldCount - 1 do
+    //if DataSet1.Fields[i].Visible=true then
+     lbOrigem.Items.AddObject(DataSet1.Fields[i].DisplayName,
+                            Pointer(DataSet1.Fields[i].Index));
+end;
+
+procedure TfExportAdo.MoveSelected(List: TCustomListBox; Items: TStrings);
+var i: integer;
+begin
+  for I := List.Items.Count - 1 downto 0 do
+    if List.Selected[i] then
+    begin
+      Items.AddObject(List.Items[i], List.Items.Objects[i]);
+      List.Items.Delete(i);
+    end;
+end;
+
+procedure TfExportAdo.SetItem(List: TListBox; Index: Integer);
+var
+  MaxIndex: Integer;
+begin
+  with List do
+  begin
+    SetFocus;
+    MaxIndex := List.Items.Count - 1;
+    if Index = LB_ERR then
+       Index := 0
+    else if Index > MaxIndex then
+       Index := MaxIndex;
+    Selected[Index] := True;
+  end;
+end;
+
+
+procedure TfExportAdo.FormActivate(Sender: TObject);
+begin
+  IncluirItens;
+end;
+
+procedure TfExportAdo.btIncluirClick(Sender: TObject);
+var Index: Integer;
+begin
+  Index := GetFirstSelection(lbOrigem);
+  MoveSelected(lbOrigem, lbDestino.Items);
+  SetItem(lbOrigem, Index);
+end;
+
+procedure TfExportAdo.btIncTudoClick(Sender: TObject);
+begin
+  lbDestino.Items := lbOrigem.Items;
+  lbOrigem.Items.Clear;
+  SetItem(lbDestino, 0);
+end;
+
+procedure TfExportAdo.btExcTudoClick(Sender: TObject);
+begin
+  lbOrigem.Items := lbDestino.Items;
+  lbDestino.Items.Clear;
+  SetItem(lbOrigem, 0);
+end;
+
+procedure TfExportAdo.btExcluirClick(Sender: TObject);
+var Index: Integer;
+begin
+  Index := GetFirstSelection(lbDestino);
+  MoveSelected(lbDestino, lbOrigem.Items);
+  SetItem(lbDestino, Index);
+end;
+
+procedure TfExportAdo.btGerarClick(Sender: TObject);
+begin
+  GerarExcel(DataSet1,Titulo,lbDestino.Items);
+end;
+
+procedure TfExportAdo.btCancelarClick(Sender: TObject);
+begin
+  Close;
+end;
+
+end.
