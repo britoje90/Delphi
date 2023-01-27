@@ -1,0 +1,202 @@
+unit uImporta_Servicos;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, Buttons, Grids, DBGrids, DBXpress, FMTBcd, DB, SqlExpr,
+  ADODB, ComCtrls, ExtCtrls;
+
+type
+  TfrmImportacao_servicos = class(TForm)
+    OpenDialog1: TOpenDialog;
+    btnBuscar: TBitBtn;
+    ADOConnection1: TADOConnection;
+    tabela1: TADOTable;
+    tabela1tipodoc: TStringField;
+    tabela1codfilial: TStringField;
+    tabela1numdoc: TStringField;
+    tabela1codprest: TStringField;
+    tabela1observa: TStringField;
+    tabela1datdigita: TDateField;
+    tabela1codope: TStringField;
+    tabela1dataprev: TDateField;
+    tabela1valor: TBCDField;
+    tabela1posicao: TStringField;
+    tabela1fluxo: TStringField;
+    btnImportar: TBitBtn;
+    StringGrid01: TStringGrid;
+    sql_numprev: TADOQuery;
+    tabela1numprevpg: TIntegerField;
+    Panel1: TPanel;
+    Label1: TLabel;
+    procedure btnBuscarClick(Sender: TObject);
+    procedure btnImportarClick(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+  private
+    function XlsToStringGrid(XStringGrid: TStringGrid; xFileXLS: string): Boolean;
+
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmImportacao_servicos: TfrmImportacao_servicos;
+  ler,gravar : TStrings;
+          i : integer;
+
+
+
+implementation
+
+uses ComObj;
+
+
+Function TfrmImportacao_servicos.XlsToStringGrid(xStringGrid: TStringGrid; xFileXLS: string): Boolean;
+const
+   xlCellTypeLastCell = $0000000B;
+var
+   XLSAplicacao, AbaXLS: OLEVariant;
+   RangeMatrix: Variant;
+   x, y, k, r: Integer;
+begin
+   Result := False;
+   // Cria Excel- OLE Object
+   XLSAplicacao := CreateOleObject('Excel.Application');
+   try
+   // Esconde Excel
+      XLSAplicacao.Visible := False;
+      // Abre o Workbook
+      XLSAplicacao.Workbooks.Open(xFileXLS);
+
+      //Slecione aqui a aba que você deseja abrir primeiro - 1,2,3,4....
+      XLSAplicacao.WorkSheets[1].Activate;
+      //Selecione aqui a aba que você deseja ativar - começando sempre no 1 (1,2,3,4)
+      AbaXLS := XLSAplicacao.Workbooks[ExtractFileName(xFileXLS)].WorkSheets[1];
+
+      AbaXLS.Cells.SpecialCells(xlCellTypeLastCell, EmptyParam).Activate;
+      // Pegar o número da última linha
+      x := XLSAplicacao.ActiveCell.Row;
+
+      // Pegar o número da última coluna
+      y := XLSAplicacao.ActiveCell.Column;
+      // Seta xStringGrid linha e coluna
+      XStringGrid.RowCount := x;
+      XStringGrid.ColCount := y;
+      // Associaca a variant WorkSheet com a variant do Delphi
+      RangeMatrix := XLSAplicacao.Range['A1', XLSAplicacao.Cells.Item[x, y]].Value;
+      // Cria o loop para listar os registros no TStringGrid
+      k := 1;
+      repeat
+         for r := 1 to y do
+            XStringGrid.Cells[(r - 1), (k - 1)] := RangeMatrix[k, r];
+         Inc(k, 1);
+      until k > x;
+      RangeMatrix := Unassigned;
+      finally
+            // Fecha o Microsoft Excel
+            if not VarIsEmpty(XLSAplicacao) then
+            begin
+                  XLSAplicacao.Quit;
+                  XLSAplicacao := Unassigned;
+                  AbaXLS := Unassigned;
+                  Result := True;
+            end;
+      end;
+end;
+
+
+{$R *.dfm}
+
+procedure TfrmImportacao_servicos.btnBuscarClick(Sender: TObject);
+begin
+
+  if OpenDialog1.Execute then
+    XlsToStringGrid(StringGrid01,OpenDialog1.FileName)
+
+end;
+
+procedure TfrmImportacao_servicos.btnImportarClick(Sender: TObject);
+var
+  numprev,I,F :integer;
+  codprest : String;
+
+begin
+    Label1.Visible := true;
+    Panel1.Visible := true;
+    sql_numprev.Active := True;
+    sql_numprev.open;//xecSQL;
+    numprev := sql_numprev.FieldbyName('numprev').AsInteger ;
+
+    try
+    F := StringGrid01.Rowcount;
+    F := F - 1;
+    btnBuscar.Enabled   := false;
+    btnImportar.Enabled := false;
+    tabela1.Open;
+
+    for I := 1 to F do
+    Begin
+
+      codprest :=  StringGrid01.Cells[1,I]  ;
+      codprest :=  formatfloat('00000000000000',strtofloat(codprest));
+
+      sql_numprev.close;
+      sql_numprev.SQL.Text := 'select codprest from cadjurid where cnpjjuri ='''+codprest+'''';
+      sql_numprev.Open;
+      codprest := sql_numprev.Fieldbyname('codprest').Value ;
+
+
+      numprev := numprev + 1;
+
+      tabela1.Insert;
+      tabela1.Edit;
+      tabela1.FieldByName('numprevpg').Value   := numprev;
+      tabela1.FieldByName('tipodoc').Value     := '05';
+      tabela1.FieldByName('codfilial').Value   := '02';
+      tabela1.FieldByName('numdoc').Value      := StringGrid01.Cells[0,I];
+      tabela1.FieldByName('codprest').Value    := codprest;
+      tabela1.FieldByName('observa').Value     := 'IMPORTACAO FISCAL';
+      tabela1.FieldByName('datdigita').Value   := DATETOSTR(NOW());
+      tabela1.FieldByName('codope').Value      := '000035';
+      tabela1.FieldByName('dataprev').Value    := StrToDate(StringGrid01.Cells[2,I]);
+      tabela1.FieldByName('valor').Value       := StringGrid01.Cells[3,I];
+      tabela1.FieldByName('posicao').Value     := '1';
+      tabela1.FieldByName('fluxo').Value       := 'S';
+     { if I < F then
+      begin
+        tabela1.FindNext;
+      end;
+      }
+      tabela1.Insert;
+    end;
+
+    Except
+      btnBuscar.Enabled   := True;
+      btnImportar.Enabled := True;
+      Label1.Visible := false;
+      Panel1.Visible := false;
+      ShowMessage('Erro ao importar o arquivo, revise os dados antes de importar!');
+      Exit;
+    end;
+
+    btnBuscar.Enabled   := True;
+    btnImportar.Enabled := True;
+    Label1.Visible := false;
+    Panel1.Visible := false;
+    ShowMessage('Arquivo importado com sucesso!');
+    tabela1.Close;
+    frmImportacao_servicos.Close;
+
+end;
+
+
+
+
+procedure TfrmImportacao_servicos.Button1Click(Sender: TObject);
+begin
+  Panel1.Visible := true;
+end;
+
+end.
