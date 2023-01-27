@@ -1,0 +1,30 @@
+procedure TfMainMenu.GridBuscaDadosDblClick(Sender: TObject);
+var
+  P_data,loginWeb :String;
+
+begin
+  protocolo := ''; //variaval declarada no create do form
+
+{
+
+
+  Inicio alteração de protocolo, anteriormente era apenas o registro da tabela
+  
+  passando para o padrçao definido pela agencia nacional da saúde ANS.
+  
+  Registro ANS + Data AAAAMMDD + sequencial da tabela (ID)
+  
+  Protocolo deverá ser enviado via e-mail
+
+
+  }
+
+   P_data:=FormatDateTime('yyyymmdd', Now);
+   protocolo := '400190' + P_data + IntToStr(dm.sql.FieldByName('id').Value);
+  {
+
+  final da alteração
+  
+  o código segue
+
+  }
